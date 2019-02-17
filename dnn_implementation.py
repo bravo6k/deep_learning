@@ -31,7 +31,32 @@ def forward_propagation(act_fun_list, parameters, X):
     for i in range(1, n_layer):
         A_prev = A
         Z = np.dot(parameters['W'+str(i)], A) + parameters['b'+str(i)]
-        A = act_fun_list[i-1].get_result(Z)
+        A = act_fun_list[i-1]().get_result(Z)
         cache['Z'+str(i)] = Z
         cache['A'+str(i)] = A
-        
+
+    A = Softmax().get_result(A)
+    cache['softmax'] = A
+    return A, cache
+
+
+def compute_cost(AL, Y):
+
+    n = Y.shape[1]
+    cost = -1/n*np.sum(np.log(AL)*Y)
+    cost = np.squeeze(cost)
+    assert(cost.shape == ())
+
+    return cost
+
+
+def backward_propagation(cache, Y):
+
+    grads = {}
+    L = len(caches)//2 # the number of layers
+    n = Y.shape[1]
+    A_softmax = cache['softmax']
+    Y = Y.reshape(A_softmax.shape) # after this line, Y is the same shape as AL
+
+    dAL = A_softmax - Y
+    

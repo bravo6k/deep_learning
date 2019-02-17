@@ -44,10 +44,14 @@ class Leaky_ReLU:
     def prime(self, Z):
         return np.where(Z>0,1,-0.01)
 
-class Sigmoid:
+class Softmax:
 
     def __init__(self):
         pass
 
     def get_result(self,Z):
-        return
+        exp = np.exp(Z)
+        return exp/np.sum(exp,axis=0,keepdims=True)
+
+    def prime(self, Z):
+        
