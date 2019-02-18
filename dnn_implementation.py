@@ -9,7 +9,7 @@ def initialize_parameters(layer_list, act_fun_list):
 
     n_layer = len(layer_list)
     parameters = {}
-    
+
     weight_init = [np.sqrt(2/layer_list[j]) if i == ReLU else np.sqrt(1/layer_list[j]) if i == Tanh else np.sqrt(2/layer_list[j]+layer_list[j+1]) for j,i in enumerate(act_fun_list)]
     for i in range(1,n_layer):
         parameters['W'+str(i)] = np.random.randn(layer_list[i],layer_list[i-1])*0.01
@@ -41,16 +41,16 @@ def forward_propagation(act_fun_list, parameters, X, keep_prob):
         cache['Z'+str(i)] = Z
         cache['A'+str(i)] = A
         cache['D'+str(i)] = D
-        
+
     # last layer
     Z = np.dot(parameters['W'+str(n_layer)], A) + parameters['b'+str(n_layer)]
     A = act_fun_list[n_layer-1]().get_result(Z)
     cache['Z'+str(n_layer)] = Z
     cache['A'+str(n_layer)] = A
-    
+
     A = Softmax().get_result(A)
     cache['softmax'] = A
-    
+
     return A, cache
 
 
@@ -105,25 +105,25 @@ def update_parameters(parameters, grads, learning_rate):
 
 
 class Neural_Network:
-        
+
     def __init__(self, layer_list, activation_function, lambd = 0, keep_prob = 1, learning_rate=0.01):
         self.layer_list = layer_list
         self.act_fun_list = activation_function
         self.learning_rate = learning_rate
         self.lambd = lambd
         self.keep_prob = keep_prob
-        
+
     def train(self, X, Y, num_iterations = 300, print_cost=False):
 
         costs = []
-        
+
         # Parameters initialization
         parameters = initialize_parameters(layer_list=self.layer_list, act_fun_list = self.act_fun_list)
 
         # Loop (gradient descent)
         for i in range(0, num_iterations):
 
-            # Forward propagation: 
+            # Forward propagation:
             AL, caches = forward_propagation(act_fun_list=self.act_fun_list, parameters=parameters, X=X, keep_prob = self.keep_prob)
 
             # Compute cost.
@@ -134,22 +134,21 @@ class Neural_Network:
 
             # Update parameters.
             parameters = update_parameters(parameters=parameters, grads=grads, learning_rate = self.learning_rate)
-            
-            # Print the cost every 10 training example
-            if print_cost and i % 10 == 0:
+
+            # Print the cost every 50 training example
+            if print_cost and i % 50 == 0:
                 print ("Cost after iteration %i: %f" %(i, cost))
             if i % 50 == 0:
                 costs.append(cost)
-                
+
         self.costs = costs
         self.parameters = parameters
-        
+
     def predict_prob(self, X):
         A, cache = forward_propagation(self.act_fun_list, self.parameters, X)
         return A
-    
+
     def predict(self, X):
         A, cache = forward_propagation(self.act_fun_list, self.parameters, X)
         result = np.argmax(A,axis=0)
         return result
-        
