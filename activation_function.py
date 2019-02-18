@@ -10,13 +10,13 @@ class Sigmoid:
 
     def prime(self, Z):
         return self.get_result(Z)*(1 - self.get_result(Z))
-
+    
 class Tanh:
 
     def __init__(self):
         pass
 
-     def get_result(self,Z):
+    def get_result(self,Z):
         return (np.exp(2*Z)-1)/(np.exp(2*Z)+1)
 
     def prime(self,Z):
@@ -28,7 +28,7 @@ class ReLU:
         pass
 
     def get_result(self, Z):
-        return max(0,Z)
+        return np.maximum(0,Z)
 
     def prime(self, Z):
         return np.where(Z>0,1,0)
@@ -39,7 +39,7 @@ class Leaky_ReLU:
         pass
 
     def get_result(self, Z):
-        return max(-0.01*Z,Z)
+        return np.maximum(-0.01*Z,Z)
 
     def prime(self, Z):
         return np.where(Z>0,1,-0.01)
@@ -53,5 +53,3 @@ class Softmax:
         exp = np.exp(Z)
         return exp/np.sum(exp,axis=0,keepdims=True)
 
-    def prime(self, Z):
-        
