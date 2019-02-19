@@ -12,6 +12,7 @@ def initialize_parameters(layer_list, act_fun_list):
     parameters = {}
 
     weight_init = [np.sqrt(2/layer_list[j]) if i == ReLU else np.sqrt(1/layer_list[j]) if i == Tanh else np.sqrt(2/layer_list[j]+layer_list[j+1]) for j,i in enumerate(act_fun_list)]
+    
     for i in range(1,n_layer):
         parameters['W'+str(i)] = np.random.randn(layer_list[i],layer_list[i-1])*0.01
         parameters['b'+str(i)] = np.zeros([layer_list[i],1])
@@ -133,7 +134,8 @@ def vector_to_dictionary(old_p,_,vec):
 def gradients_to_vector(gradients):
 
     count = 0
-    for key in gradients.keys():
+    grad_key = [i for i in gradients.keys() if "A" not in i]
+    for key in grad_key:
         # flatten parameter
         new_vector = np.reshape(gradients[key], (-1,1))
         if count == 0:
@@ -164,18 +166,17 @@ def gradient_check(parameters, gradients, X, Y, act_fun_list, keep_prob, lambd, 
         new_parameters = vector_to_dictionary(parameters,_,thetaplus)
         AL, c = forward_propagation(act_fun_list=act_fun_list, parameters = new_parameters, X=X, keep_prob = keep_prob)
         J_plus[i] = compute_cost(AL=AL,Y=Y, lambd = lambd, parameters = new_parameters)      
-
         # Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
         thetaminus = np.copy(parameters_values)                                    
         thetaminus[i][0] = thetaminus[i][0] - epsilon   
         new_parameters = vector_to_dictionary(parameters,_,thetaminus)
         AL, c = forward_propagation(act_fun_list=act_fun_list, parameters=new_parameters, X=X, keep_prob = keep_prob)  
         J_minus[i] = compute_cost(AL=AL,Y=Y, lambd = lambd, parameters = new_parameters) 
-
         # Compute gradapprox[i]
         gradapprox[i] = (J_plus[i] - J_minus[i]) / (2 * epsilon)
 
     # Compare gradapprox to backward propagation gradients by computing difference.
+    print(gradapprox.shape)
     numerator = np.linalg.norm(grad - gradapprox)                                     
     denominator = np.linalg.norm(grad) + np.linalg.norm(gradapprox)                   
     difference = numerator / denominator                                              
@@ -228,7 +229,7 @@ class Neural_Network:
         self.keep_prob = keep_prob
         self.batch_size = mini_batch_size
 
-    def train(self, X, Y, epoch = 300, print_cost=False):
+    def train(self, X, Y, epoch = 300, print_cost=False, grads_check = False):
 
         costs = []
         # Parameters initialization
@@ -256,7 +257,9 @@ class Neural_Network:
                 # Update parameters.
                 parameters = update_parameters(parameters=parameters, grads=grads, learning_rate = self.learning_rate)
                 
-                diff = gradient_check(parameters, grads, minibatch_X, minibatch_Y, self.act_fun_list, self.keep_prob, self.lambd, epsilon = 1e-7)
+                # Check gradients.
+                if grads_check:
+                    diff = gradient_check(parameters, grads, minibatch_X, minibatch_Y, self.act_fun_list, self.keep_prob, self.lambd, epsilon = 1e-7)
                 
             # Print the cost every 50 training example
             if print_cost:
