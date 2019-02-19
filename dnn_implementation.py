@@ -105,27 +105,51 @@ def update_parameters(parameters, grads, learning_rate):
     return parameters
 
 def dictionary_to_vector(parameters):
-    return
+
+    keys = []
+    count = 0
+    for key in parameters.keys():
+        
+        # flatten parameter
+        new_vector = np.reshape(parameters[key], (-1,1))
+        keys.extend([key]*new_vector.shape[0])
+        if count == 0:
+            theta = new_vector
+        else:
+            theta = np.concatenate((theta, new_vector), axis=0)
+        count = count + 1
+
+    return theta, keys
+
+def vector_to_dictionary(old_p,_,vec):
+
+    parameters = {}
+    for i in np.unique(_):
+        index = np.where(np.isin(_, i))[0]
+        parameters[i] = vec[index].reshape(old_p[i].shape)
+
+    return parameters
+
+def gradients_to_vector(gradients):
+
+    count = 0
+    for key in gradients.keys():
+        # flatten parameter
+        new_vector = np.reshape(gradients[key], (-1,1))
+        if count == 0:
+            theta = new_vector
+        else:
+            theta = np.concatenate((theta, new_vector), axis=0)
+        count = count + 1
+
+    return theta
 
 
-def gradient_check_n(parameters, gradients, X, Y, epsilon = 1e-7):
-    """
-    Checks if backward_propagation_n computes correctly the gradient of the cost output by forward_propagation_n
-
-    Arguments:
-    parameters -- python dictionary containing your parameters "W1", "b1", "W2", "b2", "W3", "b3":
-    grad -- output of backward_propagation_n, contains gradients of the cost with respect to the parameters.
-    x -- input datapoint, of shape (input size, 1)
-    y -- true "label"
-    epsilon -- tiny shift to the input to compute approximated gradient with formula(1)
-
-    Returns:
-    difference -- difference (2) between the approximated gradient and the backward propagation gradient
-    """
+def gradient_check(parameters, gradients, X, Y, act_fun_list, keep_prob, lambd, epsilon = 1e-7):
 
     # Set-up variables
-    parameters_values = np.concatenate(list(parameters.values()),axis=None)
-    grad = np.concatenate(list(gradients.values()),axis=None)
+    parameters_values, _ = dictionary_to_vector(parameters)
+    grad = gradients_to_vector(gradients)
     num_parameters = parameters_values.shape[0]
     J_plus = np.zeros((num_parameters, 1))
     J_minus = np.zeros((num_parameters, 1))
@@ -135,31 +159,27 @@ def gradient_check_n(parameters, gradients, X, Y, epsilon = 1e-7):
     for i in range(num_parameters):
 
         # Compute J_plus[i]. Inputs: "parameters_values, epsilon". Output = "J_plus[i]".
-        # "_" is used because the function you have to outputs two parameters but we only care about the first one
-        ### START CODE HERE ### (approx. 3 lines)
-        thetaplus = np.copy(parameters_values)                                      # Step 1
-        thetaplus[i][0] = thetaplus[i][0] + epsilon                                # Step 2
-        J_plus[i], _ = forward_propagation_n(X, Y, vector_to_dictionary(thetaplus))      # Step 3
-        ### END CODE HERE ###
+        thetaplus = np.copy(parameters_values)                                      
+        thetaplus[i][0] = thetaplus[i][0] + epsilon                                
+        new_parameters = vector_to_dictionary(parameters,_,thetaplus)
+        AL, c = forward_propagation(act_fun_list=act_fun_list, parameters = new_parameters, X=X, keep_prob = keep_prob)
+        J_plus[i] = compute_cost(AL=AL,Y=Y, lambd = lambd, parameters = new_parameters)      
 
         # Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
-        ### START CODE HERE ### (approx. 3 lines)
-        thetaminus = np.copy(parameters_values)                                    # Step 1
-        thetaminus[i][0] = thetaminus[i][0] - epsilon                              # Step 2
-        J_minus[i], _ = forward_propagation_n(X, Y, vector_to_dictionary(thetaminus))    # Step 3
-        ### END CODE HERE ###
+        thetaminus = np.copy(parameters_values)                                    
+        thetaminus[i][0] = thetaminus[i][0] - epsilon   
+        new_parameters = vector_to_dictionary(parameters,_,thetaminus)
+        AL, c = forward_propagation(act_fun_list=act_fun_list, parameters=new_parameters, X=X, keep_prob = keep_prob)  
+        J_minus[i] = compute_cost(AL=AL,Y=Y, lambd = lambd, parameters = new_parameters) 
 
         # Compute gradapprox[i]
-        ### START CODE HERE ### (approx. 1 line)
         gradapprox[i] = (J_plus[i] - J_minus[i]) / (2 * epsilon)
-        ### END CODE HERE ###
 
     # Compare gradapprox to backward propagation gradients by computing difference.
-    ### START CODE HERE ### (approx. 1 line)
-    numerator = np.linalg.norm(grad - gradapprox)                                     # Step 1'
-    denominator = np.linalg.norm(grad) + np.linalg.norm(gradapprox)                   # Step 2'
-    difference = numerator / denominator                                              # Step 3'
-    ### END CODE HERE ###
+    numerator = np.linalg.norm(grad - gradapprox)                                     
+    denominator = np.linalg.norm(grad) + np.linalg.norm(gradapprox)                   
+    difference = numerator / denominator                                              
+
 
     if difference > 2e-7:
         print ("\033[93m" + "There is a mistake in the backward propagation! difference = " + str(difference) + "\033[0m")
@@ -216,7 +236,7 @@ class Neural_Network:
 
         # Loop (gradient descent)
         for i in range(0, epoch):
-
+            
             mini_batches = random_mini_batches(X=X, Y=Y, mini_batch_size = self.batch_size)
 
             for minibatch in mini_batches:
@@ -235,9 +255,11 @@ class Neural_Network:
 
                 # Update parameters.
                 parameters = update_parameters(parameters=parameters, grads=grads, learning_rate = self.learning_rate)
-
+                
+                diff = gradient_check(parameters, grads, minibatch_X, minibatch_Y, self.act_fun_list, self.keep_prob, self.lambd, epsilon = 1e-7)
+                
             # Print the cost every 50 training example
-            if print_cost and i % 50 == 0:
+            if print_cost:
                 print ("Cost after iteration %i: %f" %(i, cost))
             if i % 50 == 0:
                 costs.append(cost)
