@@ -104,13 +104,77 @@ def update_parameters(parameters, grads, learning_rate):
 
     return parameters
 
+def dictionary_to_vector(parameters):
+    return
+
+
+def gradient_check_n(parameters, gradients, X, Y, epsilon = 1e-7):
+    """
+    Checks if backward_propagation_n computes correctly the gradient of the cost output by forward_propagation_n
+
+    Arguments:
+    parameters -- python dictionary containing your parameters "W1", "b1", "W2", "b2", "W3", "b3":
+    grad -- output of backward_propagation_n, contains gradients of the cost with respect to the parameters.
+    x -- input datapoint, of shape (input size, 1)
+    y -- true "label"
+    epsilon -- tiny shift to the input to compute approximated gradient with formula(1)
+
+    Returns:
+    difference -- difference (2) between the approximated gradient and the backward propagation gradient
+    """
+
+    # Set-up variables
+    parameters_values = np.concatenate(list(parameters.values()),axis=None)
+    grad = np.concatenate(list(gradients.values()),axis=None)
+    num_parameters = parameters_values.shape[0]
+    J_plus = np.zeros((num_parameters, 1))
+    J_minus = np.zeros((num_parameters, 1))
+    gradapprox = np.zeros((num_parameters, 1))
+
+    # Compute gradapprox
+    for i in range(num_parameters):
+
+        # Compute J_plus[i]. Inputs: "parameters_values, epsilon". Output = "J_plus[i]".
+        # "_" is used because the function you have to outputs two parameters but we only care about the first one
+        ### START CODE HERE ### (approx. 3 lines)
+        thetaplus = np.copy(parameters_values)                                      # Step 1
+        thetaplus[i][0] = thetaplus[i][0] + epsilon                                # Step 2
+        J_plus[i], _ = forward_propagation_n(X, Y, vector_to_dictionary(thetaplus))      # Step 3
+        ### END CODE HERE ###
+
+        # Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
+        ### START CODE HERE ### (approx. 3 lines)
+        thetaminus = np.copy(parameters_values)                                    # Step 1
+        thetaminus[i][0] = thetaminus[i][0] - epsilon                              # Step 2
+        J_minus[i], _ = forward_propagation_n(X, Y, vector_to_dictionary(thetaminus))    # Step 3
+        ### END CODE HERE ###
+
+        # Compute gradapprox[i]
+        ### START CODE HERE ### (approx. 1 line)
+        gradapprox[i] = (J_plus[i] - J_minus[i]) / (2 * epsilon)
+        ### END CODE HERE ###
+
+    # Compare gradapprox to backward propagation gradients by computing difference.
+    ### START CODE HERE ### (approx. 1 line)
+    numerator = np.linalg.norm(grad - gradapprox)                                     # Step 1'
+    denominator = np.linalg.norm(grad) + np.linalg.norm(gradapprox)                   # Step 2'
+    difference = numerator / denominator                                              # Step 3'
+    ### END CODE HERE ###
+
+    if difference > 2e-7:
+        print ("\033[93m" + "There is a mistake in the backward propagation! difference = " + str(difference) + "\033[0m")
+    else:
+        print ("\033[92m" + "Your backward propagation works perfectly fine! difference = " + str(difference) + "\033[0m")
+
+    return difference
+
 
 def random_mini_batches(X, Y, mini_batch_size):
-    
-    n = X.shape[1]  
+
+    n = X.shape[1]
     n_class = Y.shape[0]
     mini_batches = []
-        
+
     # Shuffle (X, Y)
     permutation = list(np.random.permutation(n))
     shuffled_X = X[:, permutation]
@@ -123,14 +187,14 @@ def random_mini_batches(X, Y, mini_batch_size):
         mini_batch_Y = shuffled_Y[:, k * mini_batch_size:(k + 1) * mini_batch_size]
         mini_batch = (mini_batch_X, mini_batch_Y)
         mini_batches.append(mini_batch)
-    
+
     # Handling the end case (last mini-batch < mini_batch_size)
     if n % mini_batch_size != 0:
         mini_batch_X = shuffled_X[:, mini_batch_size*num_complete_minibatches:]
         mini_batch_Y = shuffled_Y[:, mini_batch_size*num_complete_minibatches:]
         mini_batch = (mini_batch_X, mini_batch_Y)
         mini_batches.append(mini_batch)
-    
+
     return mini_batches
 
 
@@ -143,7 +207,7 @@ class Neural_Network:
         self.lambd = lambd
         self.keep_prob = keep_prob
         self.batch_size = mini_batch_size
-        
+
     def train(self, X, Y, epoch = 300, print_cost=False):
 
         costs = []
@@ -152,9 +216,9 @@ class Neural_Network:
 
         # Loop (gradient descent)
         for i in range(0, epoch):
-            
+
             mini_batches = random_mini_batches(X=X, Y=Y, mini_batch_size = self.batch_size)
-            
+
             for minibatch in mini_batches:
 
                 # Select a minibatch
@@ -189,64 +253,3 @@ class Neural_Network:
         A, cache = forward_propagation(self.act_fun_list, self.parameters, X)
         result = np.argmax(A,axis=0)
         return result
-    
-    
-#     def gradient_check_n(parameters, gradients, X, Y, epsilon = 1e-7):
-#         """
-#         Checks if backward_propagation_n computes correctly the gradient of the cost output by forward_propagation_n
-
-#         Arguments:
-#         parameters -- python dictionary containing your parameters "W1", "b1", "W2", "b2", "W3", "b3":
-#         grad -- output of backward_propagation_n, contains gradients of the cost with respect to the parameters. 
-#         x -- input datapoint, of shape (input size, 1)
-#         y -- true "label"
-#         epsilon -- tiny shift to the input to compute approximated gradient with formula(1)
-
-#         Returns:
-#         difference -- difference (2) between the approximated gradient and the backward propagation gradient
-#         """
-
-#         # Set-up variables
-#         parameters_values, _ = dictionary_to_vector(parameters)
-#         grad = gradients_to_vector(gradients)
-#         num_parameters = parameters_values.shape[0]
-#         J_plus = np.zeros((num_parameters, 1))
-#         J_minus = np.zeros((num_parameters, 1))
-#         gradapprox = np.zeros((num_parameters, 1))
-
-#         # Compute gradapprox
-#         for i in range(num_parameters):
-
-#             # Compute J_plus[i]. Inputs: "parameters_values, epsilon". Output = "J_plus[i]".
-#             # "_" is used because the function you have to outputs two parameters but we only care about the first one
-#             ### START CODE HERE ### (approx. 3 lines)
-#             thetaplus = np.copy(parameters_values)                                      # Step 1
-#             thetaplus[i][0] = thetaplus[i][0] + epsilon                                # Step 2
-#             J_plus[i], _ = forward_propagation_n(X, Y, vector_to_dictionary(thetaplus))      # Step 3
-#             ### END CODE HERE ###
-
-#             # Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
-#             ### START CODE HERE ### (approx. 3 lines)
-#             thetaminus = np.copy(parameters_values)                                    # Step 1
-#             thetaminus[i][0] = thetaminus[i][0] - epsilon                              # Step 2        
-#             J_minus[i], _ = forward_propagation_n(X, Y, vector_to_dictionary(thetaminus))    # Step 3
-#             ### END CODE HERE ###
-
-#             # Compute gradapprox[i]
-#             ### START CODE HERE ### (approx. 1 line)
-#             gradapprox[i] = (J_plus[i] - J_minus[i]) / (2 * epsilon)
-#             ### END CODE HERE ###
-
-#         # Compare gradapprox to backward propagation gradients by computing difference.
-#         ### START CODE HERE ### (approx. 1 line)
-#         numerator = np.linalg.norm(grad - gradapprox)                                     # Step 1'
-#         denominator = np.linalg.norm(grad) + np.linalg.norm(gradapprox)                   # Step 2'
-#         difference = numerator / denominator                                              # Step 3'
-#         ### END CODE HERE ###
-
-#         if difference > 2e-7:
-#             print ("\033[93m" + "There is a mistake in the backward propagation! difference = " + str(difference) + "\033[0m")
-#         else:
-#             print ("\033[92m" + "Your backward propagation works perfectly fine! difference = " + str(difference) + "\033[0m")
-
-#         return difference
