@@ -12,7 +12,7 @@ def initialize_parameters(layer_list, act_fun_list):
     parameters = {}
 
     weight_init = [np.sqrt(2/layer_list[j]) if i == ReLU else np.sqrt(1/layer_list[j]) if i == Tanh else np.sqrt(2/layer_list[j]+layer_list[j+1]) for j,i in enumerate(act_fun_list)]
-    
+
     for i in range(1,n_layer):
         parameters['W'+str(i)] = np.random.randn(layer_list[i],layer_list[i-1])*0.01
         parameters['b'+str(i)] = np.zeros([layer_list[i],1])
@@ -50,8 +50,8 @@ def forward_propagation(act_fun_list, parameters, X, keep_prob):
     cache['Z'+str(n_layer)] = Z
     cache['A'+str(n_layer)] = A
 
-    A = Softmax().get_result(A)
-    cache['softmax'] = A
+    # A = Softmax().get_result(A)
+    # cache['softmax'] = A
 
     return A, cache
 
@@ -68,17 +68,23 @@ def compute_cost(AL, Y, lambd, parameters):
     return cost
 
 
-def backward_propagation(cache, Y, act_fun_list, parameters,lambd, layer_list,keep_prob):
+def backward_propagation(AL,cache, Y, act_fun_list, parameters,lambd, layer_list,keep_prob):
 
     grads = {}
     L = len(layer_list) - 1 # the number of hidden layers
     n = Y.shape[1]
-    A_softmax = cache['softmax']
-    Y = Y.reshape(A_softmax.shape) # after this line, Y is the same shape as AL
+    Y = Y.reshape(AL.shape) # after this line, Y is the same shape as AL
 
-    dAL = A_softmax - Y
+    dZL = AL - Y
+    dWL = 1/n*np.dot(dZL,cache['A'+str(L-1)].T)+lambd/n*parameters['W'+str(L)] # dW = 1/n* dZ %*% AL-1.T * lamdba/n * W
+    dbL = 1/n*np.sum(dZL,axis = 1, keepdims = True)
+    dAL = np.dot(parameters['W'+str(L)].T,dZL)
+    dAL = dAL*cache['D'+str(L-1)]
+    dAL = dAL/keep_prob
 
-    for i in reversed(range(1,L+1)):
+    grads['dW'+str(L)] = dWL
+    grads['db'+str(L)] = dbL
+    for i in reversed(range(1,L)):
 
         grads['dA'+str(i)] = dAL
 
@@ -110,7 +116,7 @@ def dictionary_to_vector(parameters):
     keys = []
     count = 0
     for key in parameters.keys():
-        
+
         # flatten parameter
         new_vector = np.reshape(parameters[key], (-1,1))
         keys.extend([key]*new_vector.shape[0])
@@ -161,25 +167,25 @@ def gradient_check(parameters, gradients, X, Y, act_fun_list, keep_prob, lambd, 
     for i in range(num_parameters):
 
         # Compute J_plus[i]. Inputs: "parameters_values, epsilon". Output = "J_plus[i]".
-        thetaplus = np.copy(parameters_values)                                      
-        thetaplus[i][0] = thetaplus[i][0] + epsilon                                
+        thetaplus = np.copy(parameters_values)
+        thetaplus[i][0] = thetaplus[i][0] + epsilon
         new_parameters = vector_to_dictionary(parameters,_,thetaplus)
         AL, c = forward_propagation(act_fun_list=act_fun_list, parameters = new_parameters, X=X, keep_prob = keep_prob)
-        J_plus[i] = compute_cost(AL=AL,Y=Y, lambd = lambd, parameters = new_parameters)      
+        J_plus[i] = compute_cost(AL=AL,Y=Y, lambd = lambd, parameters = new_parameters)
         # Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
-        thetaminus = np.copy(parameters_values)                                    
-        thetaminus[i][0] = thetaminus[i][0] - epsilon   
+        thetaminus = np.copy(parameters_values)
+        thetaminus[i][0] = thetaminus[i][0] - epsilon
         new_parameters = vector_to_dictionary(parameters,_,thetaminus)
-        AL, c = forward_propagation(act_fun_list=act_fun_list, parameters=new_parameters, X=X, keep_prob = keep_prob)  
-        J_minus[i] = compute_cost(AL=AL,Y=Y, lambd = lambd, parameters = new_parameters) 
+        AL, c = forward_propagation(act_fun_list=act_fun_list, parameters=new_parameters, X=X, keep_prob = keep_prob)
+        J_minus[i] = compute_cost(AL=AL,Y=Y, lambd = lambd, parameters = new_parameters)
         # Compute gradapprox[i]
         gradapprox[i] = (J_plus[i] - J_minus[i]) / (2 * epsilon)
 
     # Compare gradapprox to backward propagation gradients by computing difference.
     print(gradapprox.shape)
-    numerator = np.linalg.norm(grad - gradapprox)                                     
-    denominator = np.linalg.norm(grad) + np.linalg.norm(gradapprox)                   
-    difference = numerator / denominator                                              
+    numerator = np.linalg.norm(grad - gradapprox)
+    denominator = np.linalg.norm(grad) + np.linalg.norm(gradapprox)
+    difference = numerator / denominator
 
 
     if difference > 2e-7:
@@ -237,7 +243,7 @@ class Neural_Network:
 
         # Loop (gradient descent)
         for i in range(0, epoch):
-            
+
             mini_batches = random_mini_batches(X=X, Y=Y, mini_batch_size = self.batch_size)
 
             for minibatch in mini_batches:
@@ -252,15 +258,15 @@ class Neural_Network:
                 cost = compute_cost(AL=AL,Y=minibatch_Y, lambd = self.lambd, parameters = parameters)
 
                 # Backward propagation.
-                grads = backward_propagation(act_fun_list=self.act_fun_list, cache=caches, Y=minibatch_Y, parameters=parameters, lambd=self.lambd, layer_list=self.layer_list, keep_prob=self.keep_prob)
+                grads = backward_propagation(AL=AL, act_fun_list=self.act_fun_list, cache=caches, Y=minibatch_Y, parameters=parameters, lambd=self.lambd, layer_list=self.layer_list, keep_prob=self.keep_prob)
 
                 # Update parameters.
                 parameters = update_parameters(parameters=parameters, grads=grads, learning_rate = self.learning_rate)
-                
+
                 # Check gradients.
                 if grads_check:
                     diff = gradient_check(parameters, grads, minibatch_X, minibatch_Y, self.act_fun_list, self.keep_prob, self.lambd, epsilon = 1e-7)
-                
+
             # Print the cost every 50 training example
             if print_cost:
                 print ("Cost after iteration %i: %f" %(i, cost))
